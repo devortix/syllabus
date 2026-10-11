@@ -1,12 +1,23 @@
 <template>
     <div class="schedule-container">
-        <!-- Schedule Link Section -->
-        <div class="schedule-link-section" @click="showLinkDialog = true" v-if="scheduleData">
-            <div class="schedule-link-content">
-                <van-icon name="link" size="18"/>
-                <span>Посилання на розклад</span>
+        <!-- Schedule Info Section -->
+        <div class="schedule-info-section" v-if="scheduleData">
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="info-label">Факультет:</span>
+                    <span class="info-value">{{ facultyTitle }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Група:</span>
+                    <span class="info-value">{{ groupTitle }}</span>
+                </div>
+                <div class="info-row info-link-row">
+                    <a href="#" @click.prevent="showLinkDialog = true" class="schedule-link">
+                        <van-icon name="link" size="16"/>
+                        Посилання на розклад
+                    </a>
+                </div>
             </div>
-            <van-icon name="arrow" size="20" class="link-arrow"/>
         </div>
 
         <!-- Schedule Link ShareSheet with Link Display -->
@@ -35,7 +46,7 @@
         </van-popup>
 
         <!-- Week Swipe Navigation -->
-        <div class="week-swipe-container">
+        <div class="week-swipe-container sticky">
             <van-icon
                 name="arrow-left"
                 size="20"
@@ -72,7 +83,7 @@
         </div>
 
         <!-- Schedule Table -->
-        <div class="schedule-table-wrapper" :key="currentParity">
+        <div class="schedule-table-wrapper" :key="`${filters.year}_${filters.semester}_${filters.faculty}_${filters.course}_${filters.group}`">
             <table class="schedule-table" v-if="scheduleData && scheduleData[currentParity]">
                 <tbody>
                 <template v-for="day in days" :key="day.code">
@@ -108,7 +119,7 @@
 </template>
 
 <script setup>
-import {computed, onMounted, ref, watch} from 'vue';
+import {computed, onMounted, ref, watch, nextTick} from 'vue';
 import {showNotify} from 'vant';
 import scheduleRepository from '@/services/scheduleRepository.js';
 import WeekParityCalculator from '@/services/weekParityCalculator.js';
@@ -118,6 +129,14 @@ const props = defineProps({
     filters: {
         type: Object,
         required: true
+    },
+    facultyTitle: {
+        type: String,
+        default: ''
+    },
+    groupTitle: {
+        type: String,
+        default: ''
     }
 });
 
@@ -256,8 +275,19 @@ const copyScheduleLink = async () => {
     }
 };
 
+const getFacultyTitle = (facultyCode) => {
+    return props.facultyTitle;
+};
+
+const getGroupTitle = (groupCode) => {
+    return props.groupTitle;
+};
+
 const loadSchedule = async () => {
     try {
+        // Clear previous schedule data before loading new one
+        scheduleData.value = null;
+        
         scheduleData.value = await scheduleRepository.getSchedule(
             props.filters.year,
             props.filters.semester,
@@ -268,13 +298,29 @@ const loadSchedule = async () => {
 
         // Set active swipe index to 0 (current week)
         currentSwipeIndex.value = 0;
+        
+        // Force swipe to recalculate dimensions after DOM updates
+        await nextTick();
+        if (swipeRef.value) {
+            swipeRef.value.resize();
+        }
     } catch (error) {
         console.error('Error loading schedule:', error);
+        // Ensure data is cleared on error
+        scheduleData.value = null;
     }
 };
 
-onMounted(() => {
-    loadSchedule();
+onMounted(async () => {
+    await loadSchedule();
+    
+    // Additional resize to ensure proper initialization
+    await nextTick();
+    setTimeout(() => {
+        if (swipeRef.value) {
+            swipeRef.value.resize();
+        }
+    }, 100);
 });
 
 watch(
@@ -304,28 +350,59 @@ watch(
     min-height: 100vh;
 }
 
-.schedule-link-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.schedule-info-section {
     background: white;
-    padding: 12px 16px;
+    padding: 12px 14px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
 }
 
-.schedule-link-content {
+.info-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.info-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    line-height: 1.3;
+}
+
+.info-link-row {
+    border-top: 1px solid #e0e0e0;
+    padding-top: 10px;
+    margin-top: 4px;
+}
+
+.schedule-link {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
+    gap: 6px;
     color: #1989fa;
+    text-decoration: none;
+    font-size: 13px;
     font-weight: 500;
+    transition: opacity 0.2s;
 }
 
-.link-arrow {
-    color: #999;
+.schedule-link:active {
+    opacity: 0.7;
 }
 
 .week-header {
@@ -361,6 +438,12 @@ watch(
     padding: 12px 8px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.week-swipe-container.sticky {
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 
