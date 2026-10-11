@@ -1,380 +1,441 @@
 <template>
-  <div class="schedule-container">
-    <!-- Schedule Link Section -->
-    <div class="schedule-link-section" v-if="scheduleData">
-      <div class="schedule-link-content">
-        <van-icon name="link" size="18" />
-        <span>Посилання на розклад</span>
-      </div>
-      <van-icon name="arrow" size="20" @click="showLinkDialog = true" class="link-arrow" />
-    </div>
-
-    <!-- Schedule Link Dialog -->
-    <van-dialog
-      v-model:show="showLinkDialog"
-      title="Посилання на розклад"
-      show-cancel-button
-      confirm-button-text="Скопіювати посилання"
-      @confirm="copyScheduleLink"
-    >
-      <div class="link-dialog-content">
-        <div class="link-input">
-          <input type="text" :value="scheduleLink" readonly />
+    <div class="schedule-container">
+        <!-- Schedule Link Section -->
+        <div class="schedule-link-section" @click="showLinkDialog = true" v-if="scheduleData">
+            <div class="schedule-link-content">
+                <van-icon name="link" size="18"/>
+                <span>Посилання на розклад</span>
+            </div>
+            <van-icon name="arrow" size="20" class="link-arrow"/>
         </div>
-      </div>
-    </van-dialog>
 
-    <!-- Week Header -->
-    <div class="week-header">
-      <div class="week-dates">{{ weekInfo.display }}</div>
-      <div class="week-parity">{{ weekInfo.parityDisplay }}</div>
-    </div>
-
-    <!-- Parity Toggle using Tabs -->
-    <van-tabs
-      v-model:active="activeTab"
-      @change="onTabChange"
-      color="#1989fa"
-    >
-      <van-tab title="чисельник" name="first">
-        <div class="schedule-table-wrapper">
-          <table class="schedule-table" v-if="scheduleData && scheduleData.first">
-            <tbody>
-              <template v-for="day in days" :key="day.code">
-                <tr class="day-header">
-                  <td colspan="2">{{ day.name }}</td>
-                </tr>
+        <!-- Schedule Link ShareSheet with Link Display -->
+        <van-popup
+            v-model:show="showLinkDialog"
+            position="bottom"
+            class="link-popup"
+        >
+            <div class="link-popup-content">
+                <div class="link-popup-header">
+                    <h3>Поділитися розкладом</h3>
+                    <van-icon name="cross" size="24" @click="showLinkDialog = false" class="close-icon"/>
+                </div>
                 
-                <tr v-for="lessonSlot in getFullDaySchedule('first', day.code)" :key="`first-${day.code}-${lessonSlot.number}`" class="lesson-row">
-                  <td class="lesson-time">
-                      <div class="lesson-time-inner">
-                        <div class="time-start">{{ lessonSlot.timeStart }}</div>
-                        <div class="time-end">{{ lessonSlot.timeEnd }}</div>
-                      </div>
-                  </td>
-                  <td class="lesson-info" v-if="lessonSlot.lesson">
-                    <div class="lesson-short">{{ lessonSlot.lesson.short }}</div>
-                    <div class="lesson-teacher">{{ lessonSlot.lesson.teacher }}</div>
-                  </td>
-                  <td class="lesson-info empty" v-else></td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-          <div v-else class="no-schedule">
-            <p>Розклад не завантажено</p>
-          </div>
-        </div>
-      </van-tab>
+                <div class="link-display-section">
+                    <div class="link-text">{{ scheduleLink }}</div>
+                    <button @click="copyScheduleLink" class="copy-button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        </svg>
+                        Копіювати
+                    </button>
+                </div>
+            </div>
+        </van-popup>
 
-      <van-tab title="знаменник" name="second">
-        <div class="schedule-table-wrapper">
-          <table class="schedule-table" v-if="scheduleData && scheduleData.second">
-            <tbody>
-              <template v-for="day in days" :key="day.code">
-                <tr class="day-header">
-                  <td colspan="2">{{ day.name }}</td>
-                </tr>
-                
-                <tr v-for="lessonSlot in getFullDaySchedule('second', day.code)" :key="`second-${day.code}-${lessonSlot.number}`" class="lesson-row">
-                  <td class="lesson-time">
-                      <div class="lesson-time-inner">
-                        <div class="time-start">{{ lessonSlot.timeStart }}</div>
-                        <div class="time-end">{{ lessonSlot.timeEnd }}</div>
-                      </div>
-                  </td>
-                  <td class="lesson-info" v-if="lessonSlot.lesson">
-                    <div class="lesson-short">{{ lessonSlot.lesson.short }}</div>
-                    <div class="lesson-teacher">{{ lessonSlot.lesson.teacher }}</div>
-                  </td>
-                  <td class="lesson-info empty" v-else></td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-          <div v-else class="no-schedule">
-            <p>Розклад не завантажено</p>
-          </div>
+        <!-- Week Swipe Navigation -->
+        <div class="week-swipe-container">
+            <van-icon
+                name="arrow-left"
+                size="20"
+                class="swipe-arrow swipe-arrow-left"
+                @click="handlePrevWeek"
+            />
+            <van-swipe
+                ref="swipeRef"
+                :active="currentSwipeIndex"
+                @change="onSwipeChange"
+                class="week-swipe"
+                :show-indicators="false"
+            >
+                <van-swipe-item class="week-item">
+                    <div class="week-header">
+                        <div class="week-dates">{{weekInfo.display}}</div>
+                        <div class="week-parity">{{weekInfo.parityDisplay}}</div>
+                    </div>
+                </van-swipe-item>
+
+                <van-swipe-item class="week-item">
+                    <div class="week-header">
+                        <div class="week-dates">{{nextWeekInfo.display}}</div>
+                        <div class="week-parity">{{nextWeekInfo.parityDisplay}}</div>
+                    </div>
+                </van-swipe-item>
+            </van-swipe>
+            <van-icon
+                name="arrow"
+                size="20"
+                class="swipe-arrow swipe-arrow-right"
+                @click="handleNextWeek"
+            />
         </div>
-      </van-tab>
-    </van-tabs>
-  </div>
+
+        <!-- Schedule Table -->
+        <div class="schedule-table-wrapper" :key="currentParity">
+            <table class="schedule-table" v-if="scheduleData && scheduleData[currentParity]">
+                <tbody>
+                <template v-for="day in days" :key="day.code">
+                    <tr class="day-header">
+                        <td colspan="2">{{day.name}}</td>
+                    </tr>
+
+                    <tr
+                        v-for="lessonSlot in getFullDaySchedule(currentParity, day.code)"
+                        :key="`${currentParity}-${day.code}-${lessonSlot.number}`"
+                        class="lesson-row"
+                    >
+                        <td class="lesson-time">
+                            <div class="lesson-time-inner">
+                                <div class="time-start">{{lessonSlot.timeStart}}</div>
+                                <div class="time-end">{{lessonSlot.timeEnd}}</div>
+                            </div>
+                        </td>
+                        <td class="lesson-info" v-if="lessonSlot.lesson">
+                            <div class="lesson-title">{{lessonSlot.lesson.title}}</div>
+                            <div class="lesson-teacher">{{lessonSlot.lesson.teacher}}</div>
+                        </td>
+                        <td class="lesson-info empty" v-else></td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+            <div v-else class="no-schedule">
+                <p>Розклад не завантажено</p>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { Tabs, Tab, Dialog, Button, Icon } from 'vant';
-import { Toast } from 'vant';
+import {computed, onMounted, ref, watch} from 'vue';
+import {showNotify} from 'vant';
 import scheduleRepository from '@/services/scheduleRepository.js';
 import WeekParityCalculator from '@/services/weekParityCalculator.js';
+import { config } from '@/config.js';
 
 const props = defineProps({
-  filters: {
-    type: Object,
-    required: true
-  }
+    filters: {
+        type: Object,
+        required: true
+    }
 });
 
 // State
 const scheduleData = ref(null);
-const activeTab = ref('first');
+const currentSwipeIndex = ref(0);
 const showLinkDialog = ref(false);
+const swipeRef = ref(null);
 
 const days = [
-  { code: '1', name: 'Понеділок' },
-  { code: '2', name: 'Вівторок' },
-  { code: '3', name: 'Середа' },
-  { code: '4', name: 'Четвер' },
-  { code: '5', name: 'П\'ятниця' },
-  { code: '6', name: 'Субота' }
+    {code: '1', name: 'Понеділок'},
+    {code: '2', name: 'Вівторок'},
+    {code: '3', name: 'Середа'},
+    {code: '4', name: 'Четвер'},
+    {code: '5', name: 'П\'ятниця'},
+    {code: '6', name: 'Субота'}
 ];
 
 // Lesson times
 const lessonTimes = {
-  1: { start: '8.00', end: '9.40' },
-  2: { start: '9.40', end: '11.00' },
-  3: { start: '11.20', end: '12.40' },
-  4: { start: '13.00', end: '14.20' },
-  5: { start: '14.40', end: '16.00' }
+    1: {start: '8.00', end: '9.40'},
+    2: {start: '9.40', end: '11.00'},
+    3: {start: '11.20', end: '12.40'},
+    4: {start: '13.00', end: '14.20'},
+    5: {start: '14.40', end: '16.00'}
 };
 
 // Computed
 const weekInfo = computed(() => {
-  return WeekParityCalculator.getCurrentWeekRange();
+    return WeekParityCalculator.getCurrentWeekRange();
+});
+
+const nextWeekInfo = computed(() => {
+    return WeekParityCalculator.getNextWeekRange();
+});
+
+const currentParity = computed(() => {
+    return currentSwipeIndex.value === 0 ? weekInfo.value.parity : nextWeekInfo.value.parity;
+});
+
+const currentWeekDisplay = computed(() => {
+    return currentSwipeIndex.value === 0 ? weekInfo.value.display : nextWeekInfo.value.display;
 });
 
 const scheduleLink = computed(() => {
-  if (!props.filters) return '';
-  const { year, faculty, course, group } = props.filters;
-  return `${window.location.origin}${window.location.pathname}?startapp=${year},${faculty},${course},${group}`;
+    if (!props.filters) return '';
+    const {year, semester, faculty, course, group} = props.filters;
+    return `${config.scheduleDomain}?app=${year}_${semester}_${faculty}_${course}_${group}`;
 });
 
 // Methods
 const getLessonsForDay = (parity, dayCode) => {
-  if (!scheduleData.value || !scheduleData.value[parity]) {
-    return [];
-  }
-
-  const dayLessons = [];
-  const parityData = scheduleData.value[parity];
-
-  for (const key in parityData) {
-    if (key.startsWith(dayCode + '_')) {
-      const lessonData = parityData[key];
-      const lessonNumber = parseInt(key.split('_')[1]);
-      dayLessons.push({
-        number: lessonNumber,
-        short: lessonData.short,
-        teacher: lessonData.teacher
-      });
+    if (!scheduleData.value || !scheduleData.value[parity]) {
+        return [];
     }
-  }
 
-  return dayLessons.sort((a, b) => a.number - b.number);
+    const dayLessons = [];
+    const parityData = scheduleData.value[parity];
+
+    for (const key in parityData) {
+        if (key.startsWith(dayCode + '_')) {
+            const lessonData = parityData[key];
+            const lessonNumber = parseInt(key.split('_')[1]);
+            dayLessons.push({
+                number: lessonNumber,
+                title: lessonData.title,
+                teacher: lessonData.teacher
+            });
+        }
+    }
+
+    return dayLessons.sort((a, b) => a.number - b.number);
 };
 
 const getFullDaySchedule = (parity, dayCode) => {
-  const lessons = getLessonsForDay(parity, dayCode);
-  
-  if (lessons.length === 0) {
-    return [];
-  }
+    const lessons = getLessonsForDay(parity, dayCode);
 
-  // Find the maximum lesson number for this day
-  const maxLesson = Math.max(...lessons.map(l => l.number));
+    if (lessons.length === 0) {
+        return [];
+    }
 
-  // Create array for all lessons from 1 to maxLesson
-  const fullSchedule = [];
-  
-  for (let i = 1; i <= maxLesson; i++) {
-    const lesson = lessons.find(l => l.number === i);
-    
-    fullSchedule.push({
-      number: i,
-      timeStart: lessonTimes[i]?.start || '',
-      timeEnd: lessonTimes[i]?.end || '',
-      lesson: lesson || null
-    });
-  }
+    // Find the maximum lesson number for this day
+    const maxLesson = Math.max(...lessons.map(l => l.number));
 
-  return fullSchedule;
+    // Create array for all lessons from 1 to maxLesson
+    const fullSchedule = [];
+
+    for (let i = 1; i <= maxLesson; i++) {
+        const lesson = lessons.find(l => l.number === i);
+
+        fullSchedule.push({
+            number: i,
+            timeStart: lessonTimes[i]?.start || '',
+            timeEnd: lessonTimes[i]?.end || '',
+            lesson: lesson || null
+        });
+    }
+
+    return fullSchedule;
 };
 
-const onTabChange = () => {
-  // Tab change is automatically handled by v-model:active
+const onSwipeChange = (index) => {
+    currentSwipeIndex.value = index;
+    console.log('Swipe changed to index:', index);
+    console.log('Current parity:', currentParity.value);
+};
+
+const handlePrevWeek = () => {
+    if (swipeRef.value && currentSwipeIndex.value > 0) {
+        swipeRef.value.swipeTo(0);
+    }
+};
+
+const handleNextWeek = () => {
+    if (swipeRef.value && currentSwipeIndex.value < 1) {
+        swipeRef.value.swipeTo(1);
+    }
 };
 
 const copyScheduleLink = async () => {
-  try {
-    await navigator.clipboard.writeText(scheduleLink.value);
-    showLinkDialog.value = false;
-    Toast.success('Посилання скопійовано');
-  } catch (error) {
-    Toast.fail('Помилка при копіюванні');
-    console.error(error);
-  }
+    try {
+        await navigator.clipboard.writeText(scheduleLink.value);
+        showLinkDialog.value = false;
+        showNotify({
+            type: 'success',
+            message: 'Посилання скопійовано',
+            duration: 2000
+        });
+    } catch (error) {
+        showNotify({
+            type: 'danger',
+            message: 'Помилка при копіюванні',
+            duration: 2000
+        });
+        console.error(error);
+    }
 };
 
 const loadSchedule = async () => {
-  try {
-    scheduleData.value = await scheduleRepository.getSchedule(
-      props.filters.year,
-      props.filters.faculty,
-      props.filters.course,
-      props.filters.group
-    );
-    
-    // Set active tab based on current week parity
-    activeTab.value = weekInfo.value.parity;
-  } catch (error) {
-    console.error('Error loading schedule:', error);
-  }
+    try {
+        scheduleData.value = await scheduleRepository.getSchedule(
+            props.filters.year,
+            props.filters.semester,
+            props.filters.faculty,
+            props.filters.course,
+            props.filters.group
+        );
+
+        // Set active swipe index to 0 (current week)
+        currentSwipeIndex.value = 0;
+    } catch (error) {
+        console.error('Error loading schedule:', error);
+    }
 };
 
 onMounted(() => {
-  loadSchedule();
+    loadSchedule();
 });
 
 watch(
-  () => props.filters,
-  () => {
-    loadSchedule();
-  },
-  { deep: true }
+    () => currentSwipeIndex.value,
+    (newIndex) => {
+        console.log('Swipe index changed to:', newIndex);
+        console.log('Current parity:', currentParity.value);
+    }
+);
+
+watch(
+    () => props.filters,
+    () => {
+        loadSchedule();
+    },
+    {deep: true}
 );
 </script>
 
-<style scoped  >
+<style scoped>
 .schedule-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  background: #f5f5f5;
-  min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    background: #f5f5f5;
+    min-height: 100vh;
 }
 
 .schedule-link-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 12px 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
 }
 
 .schedule-link-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #1989fa;
-  font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #1989fa;
+    font-weight: 500;
 }
 
 .link-arrow {
-  color: #999;
-}
-
-.link-dialog-content {
-  padding: 16px 0;
-}
-
-.link-input {
-  position: relative;
-}
-
-.link-input input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-size: 12px;
-  font-family: monospace;
-  background: #f9f9f9;
-  color: #666;
+    color: #999;
 }
 
 .week-header {
-  background: white;
-  padding: 16px;
-  border-radius: 8px;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    padding: 5px;
+    width: 100%;
+    text-align: center;
+
 }
 
 .week-dates {
-  font-size: 18px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
 }
 
 .week-parity {
-  font-size: 14px;
-  color: #1989fa;
-  font-weight: 500;
+    font-size: 14px;
+    color: #1989fa;
+    font-weight: 500;
+}
+
+:deep(.van-swipe) {
+    margin-bottom: 0;
+}
+
+.week-swipe-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    padding: 12px 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+
+.week-item {
+    padding: 0;
+}
+
+.swipe-arrow {
+    cursor: pointer;
+    color: #1989fa;
+    flex-shrink: 0;
+    transition: opacity 0.2s;
+}
+
+.swipe-arrow:active {
+    opacity: 0.7;
 }
 
 :deep(.van-tabs) {
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 :deep(.van-tabs__nav) {
-  background: white;
+    background: white;
 }
 
 :deep(.van-tab) {
-  padding: 16px;
+    padding: 16px;
 }
 
 .schedule-table-wrapper {
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    animation: fadeIn 0.6s ease;
 }
 
 .schedule-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
 }
 
 .day-header {
-  background: #f0f0f0;
-  font-weight: bold;
-  text-align: center;
-  color: #333;
+    background: #f0f0f0;
+    font-weight: bold;
+    text-align: center;
+    color: #333;
 }
 
 .day-header td {
-  padding: 12px;
-  border-bottom: 2px solid #e0e0e0;
+    padding: 12px;
+    border-bottom: 2px solid #e0e0e0;
 }
 
 .lesson-row {
-  border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .lesson-row:last-child {
-  border-bottom: none;
+    border-bottom: none;
 }
 
 .lesson-time {
-  width: 60px;
-  text-align: center;
-  padding: 12px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  background: #f9f9f9;
-  color: #666;
-  border-right: 1px solid #e0e0e0;
-  display: flex;
+    width: 60px;
+    text-align: center;
+    padding: 12px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #f9f9f9;
+    color: #666;
+    border-right: 1px solid #e0e0e0;
 }
 
 .lesson-time-inner {
@@ -387,48 +448,168 @@ watch(
 }
 
 .time-start {
-  margin-bottom: 10px;
+    margin-bottom: 10px;
 }
 
-.time-end {
-  font-weight: normal;
-}
 
 .lesson-info {
-  padding: 12px;
-  min-height: 70px;
+    padding: 7px 12px;
+    min-height: 50px;
 }
 
 .lesson-info.empty {
-  background: #f9f9f9;
+    background: #f9f9f9;
 }
 
-.lesson-short {
-  font-weight: bold;
-  color: #1989fa;
-  font-size: 14px;
-  margin-bottom: 4px;
+.lesson-title {
+    font-weight: 600;
+    color: #1989fa;
+    font-size: 14px;
+    margin-bottom: 4px;
 }
 
 .lesson-teacher {
-  color: #999;
-  font-size: 12px;
-  margin-top: 4px;
+    color: #999;
+    font-size: 12px;
+    margin-top: 4px;
 }
 
 .empty-day {
-  text-align: center;
-  color: #999;
-  padding: 16px;
+    text-align: center;
+    color: #999;
+    padding: 16px;
 }
 
 .empty-day td {
-  border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .no-schedule {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.lesson-row {
+    animation: fadeInRow 0.8s ease;
+}
+
+@keyframes fadeInRow {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Animations for table transitions */
+.fade-list-enter-active,
+.fade-list-leave-active {
+    transition: all 0.3s ease;
+}
+
+.fade-list-enter-from {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.fade-list-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.fade-list-move {
+    transition: transform 0.3s ease;
+}
+
+.link-popup {
+    --van-popup-background: white;
+}
+
+.link-popup-content {
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.link-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.link-popup-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.close-icon {
+    cursor: pointer;
+    color: #999;
+    transition: color 0.2s;
+}
+
+.close-icon:active {
+    color: #666;
+}
+
+.link-display-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.link-text {
+    padding: 12px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: monospace;
+    color: #666;
+    word-break: break-all;
+    line-height: 1.5;
+    border: 1px solid #e0e0e0;
+}
+
+.copy-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #1989fa;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.copy-button:active {
+    background: #0f6ec4;
+}
+
+.copy-button svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
 }
 </style>

@@ -13,25 +13,43 @@
       </div>
     </div>
 
-    <!-- Info Dialog -->
-    <van-dialog
+    <!-- Info Popup -->
+    <van-popup
       v-model:show="showInfo"
-      title="Інформація"
-      show-cancel-button
-      @confirm="showInfo = false"
+      position="bottom"
+      class="info-popup"
     >
-      <div class="info-content">
-        <h3>Розклад занять</h3>
-        <p>Приложение для перегляду розкладу занять</p>
-        <hr />
-        <h4>Контакти:</h4>
-        <p>
-          📧 Email: <strong>info@university.edu</strong><br />
-          📞 Tel: <strong>+38 (0) XX XXX-XX-XX</strong><br />
-          🌐 Web: <strong>www.university.edu</strong>
-        </p>
+      <div class="info-popup-content">
+        <div class="info-popup-header">
+          <h3>Про застосунок</h3>
+          <van-icon name="cross" size="24" @click="showInfo = false" class="close-icon"/>
+        </div>
+        
+        <div class="info-body">
+          <div class="info-section">
+            <h4 class="info-title">Syllabus</h4>
+            <p class="info-description">Застосунок для зручного перегляду розкладу занять.</p>
+          </div>
+
+          <div class="info-section">
+            <h5 class="info-subtitle">Побажання та зауваження</h5>
+            <p class="info-text">
+              <a href="https://t.me/devopus13" target="_blank" class="info-link">@devopus13</a>
+            </p>
+          </div>
+
+          <div class="info-section">
+            <h5 class="info-subtitle">Як додати розклад своєї групи?</h5>
+            <ol class="info-list">
+              <li>Заповніть Google-таблицю за прикладом.</li>
+              <li>Надішліть посилання на заповнену таблицю <a href="https://t.me/devopus13" target="_blank" class="info-link">@devopus13</a>.</li>
+              <li>Вкажіть факультет, курс і групу.</li>
+            </ol>
+            <p class="info-note">Після цього розклад вашої групи можна буде додати до застосунку.</p>
+          </div>
+        </div>
       </div>
-    </van-dialog>
+    </van-popup>
 
     <!-- Main Content -->
     <div class="app-content">
@@ -62,10 +80,20 @@
       @select="onYearSelect"
     />
 
+    <!-- Semester Selection ActionSheet -->
+    <van-action-sheet
+      v-model:show="showSemesterSheet"
+      :title="`Оберіть семестр (${selectedYear})`"
+      :actions="semesterActions"
+      :cancel-text="`< ${selectedYear}`"
+      @select="onSemesterSelect"
+      @cancel="goBack('semester')"
+    />
+
     <!-- Faculty Selection ActionSheet -->
     <van-action-sheet
       v-model:show="showFacultySheet"
-      :title="`Оберіть факультет (${selectedYear})`"
+      :title="`Оберіть факультет (${selectedYear}, ${selectedSemester}-й семестр)`"
       :actions="facultyActions"
       :cancel-text="`< ${selectedYear}`"
       @select="onFacultySelect"
@@ -106,11 +134,13 @@ const selectedFilters = ref(null);
 // Filter selector state
 const allFilters = ref([]);
 const showYearSheet = ref(false);
+const showSemesterSheet = ref(false);
 const showFacultySheet = ref(false);
 const showCourseSheet = ref(false);
 const showGroupSheet = ref(false);
 
 const selectedYear = ref(null);
+const selectedSemester = ref(null);
 const selectedFaculty = ref(null);
 const selectedCourse = ref(null);
 const selectedGroup = ref(null);
@@ -125,9 +155,22 @@ const yearActions = computed(() => {
   }));
 });
 
-const faculties = computed(() => {
+const semesters = computed(() => {
   if (!selectedYear.value) return [];
   return allFilters.value;
+});
+
+const semesterActions = computed(() => {
+  return semesters.value.map(semester => ({
+    name: semester.title,
+    value: semester.code
+  }));
+});
+
+const faculties = computed(() => {
+  if (!selectedSemester.value) return [];
+  const semester = semesters.value.find(s => s.code === selectedSemester.value);
+  return semester ? semester.data : [];
 });
 
 const facultyActions = computed(() => {
@@ -191,6 +234,12 @@ const handleSelectClick = () => {
 const onYearSelect = (action) => {
   selectedYear.value = action.value;
   showYearSheet.value = false;
+  showSemesterSheet.value = true;
+};
+
+const onSemesterSelect = (action) => {
+  selectedSemester.value = action.value;
+  showSemesterSheet.value = false;
   showFacultySheet.value = true;
 };
 
@@ -212,6 +261,7 @@ const onGroupSelect = (action) => {
   
   selectedFilters.value = {
     year: selectedYear.value,
+    semester: selectedSemester.value,
     faculty: selectedFaculty.value,
     course: selectedCourse.value,
     group: selectedGroup.value
@@ -221,12 +271,19 @@ const onGroupSelect = (action) => {
 };
 
 const goBack = (level) => {
-  if (level === 'faculty') {
+  if (level === 'semester') {
+    selectedSemester.value = null;
+    selectedFaculty.value = null;
+    selectedCourse.value = null;
+    selectedGroup.value = null;
+    showSemesterSheet.value = false;
+    showYearSheet.value = true;
+  } else if (level === 'faculty') {
     selectedFaculty.value = null;
     selectedCourse.value = null;
     selectedGroup.value = null;
     showFacultySheet.value = false;
-    showYearSheet.value = true;
+    showSemesterSheet.value = true;
   } else if (level === 'course') {
     selectedCourse.value = null;
     selectedGroup.value = null;
@@ -241,6 +298,7 @@ const goBack = (level) => {
 
 const resetSelection = () => {
   selectedYear.value = null;
+  selectedSemester.value = null;
   selectedFaculty.value = null;
   selectedCourse.value = null;
   selectedGroup.value = null;
@@ -248,20 +306,24 @@ const resetSelection = () => {
 
 const parseStartAppParam = async () => {
   const params = new URLSearchParams(window.location.search);
-  const startapp = params.get('startapp');
+  const app = params.get('app');
   
-  if (!startapp) return;
+  if (!app) return;
   
-  const parts = startapp.split(',');
-  if (parts.length !== 4) return;
+  const parts = app.split('_');
+  if (parts.length !== 5) return;
   
-  const [year, faculty, course, group] = parts;
+  const [year, semester, faculty, course, group] = parts;
   
   // Validate year
   if (!availableYears.includes(parseInt(year))) return;
   
-  // Find faculty in filters
-  const facultyObj = allFilters.value.find(f => f.code === faculty);
+  // Find semester in filters
+  const semesterObj = semesters.value.find(s => s.code === semester);
+  if (!semesterObj) return;
+  
+  // Find faculty in semester
+  const facultyObj = semesterObj.data.find(f => f.code === faculty);
   if (!facultyObj) return;
   
   // Find course in faculty
@@ -275,6 +337,7 @@ const parseStartAppParam = async () => {
   // All valid, set filters
   selectedFilters.value = {
     year: parseInt(year),
+    semester,
     faculty,
     course,
     group
@@ -355,34 +418,111 @@ onMounted(async () => {
   font-size: 16px;
 }
 
-.info-content {
-  padding: 16px 0;
-  text-align: left;
+.info-popup {
+  --van-popup-background: white;
 }
 
-.info-content h3 {
-  margin: 16px 0 8px;
+.info-popup-content {
+  padding: 20px;
+  border-radius: 12px 12px 0 0;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.info-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.info-popup-header h3 {
+  margin: 0;
   font-size: 18px;
+  font-weight: 600;
   color: #333;
 }
 
-.info-content h4 {
-  margin: 12px 0 8px;
-  font-size: 14px;
+.close-icon {
+  cursor: pointer;
+  color: #999;
+  transition: color 0.2s;
+}
+
+.close-icon:active {
   color: #666;
 }
 
-.info-content p {
-  margin: 8px 0;
+.info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-section {
+  margin-bottom: 20px;
+}
+
+.info-section:last-child {
+  margin-bottom: 0;
+}
+
+.info-title {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1989fa;
+}
+
+.info-subtitle {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.info-description {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.info-text {
+  margin: 0;
   font-size: 13px;
   color: #666;
   line-height: 1.6;
 }
 
-.info-content hr {
-  margin: 12px 0;
-  border: none;
-  border-top: 1px solid #e0e0e0;
+.info-link {
+  color: #1989fa;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.info-link:active {
+  opacity: 0.7;
+}
+
+.info-list {
+  margin: 8px 0 0 20px;
+  padding: 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.8;
+}
+
+.info-list li {
+  margin-bottom: 6px;
+}
+
+.info-note {
+  margin: 12px 0 0 0;
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+  line-height: 1.6;
 }
 </style>
 

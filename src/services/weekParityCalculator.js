@@ -30,12 +30,39 @@ export class WeekParityCalculator {
     const startOfWeek = currentDate.clone().startOf('isoWeek'); // Понеділок
     const endOfWeek = currentDate.clone().endOf('isoWeek'); // Неділя
 
+    moment.locale('uk');
+    const startDay = startOfWeek.format('D');
+    const endDay = endOfWeek.format('D MMMM');
+
     return {
       start: startOfWeek,
       end: endOfWeek,
-      display: `${startOfWeek.format('DD.MM.YYYY')} - ${endOfWeek.format('DD.MM.YYYY')}`,
+      display: `${startDay} - ${endDay}`,
       parity: this.getCurrentWeekParity(date),
       parityDisplay: this.getCurrentWeekParity(date) === 'first' ? 'чисельник' : 'знаменник'
+    };
+  }
+
+  /**
+   * Отримує діапазон дат наступного тижня
+   * @param {Date|moment} date - дата для перевірки
+   * @returns {object} { start: moment, end: moment, display: string }
+   */
+  static getNextWeekRange(date = null) {
+    const currentDate = date ? moment(date) : moment();
+    const nextWeekStart = currentDate.clone().startOf('isoWeek').add(1, 'weeks'); // Понеділок наступного тижня
+    const nextWeekEnd = nextWeekStart.clone().endOf('isoWeek'); // Неділя наступного тижня
+
+    moment.locale('uk');
+    const startDay = nextWeekStart.format('D');
+    const endDay = nextWeekEnd.format('D MMMM');
+
+    return {
+      start: nextWeekStart,
+      end: nextWeekEnd,
+      display: `${startDay} - ${endDay}`,
+      parity: this.getCurrentWeekParity(nextWeekStart),
+      parityDisplay: this.getCurrentWeekParity(nextWeekStart) === 'first' ? 'чисельник' : 'знаменник'
     };
   }
 

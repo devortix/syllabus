@@ -10,8 +10,17 @@
     />
 
     <van-action-sheet
+      v-model:show="showSemesterSheet"
+      :title="`Оберіть семестр (${selectedYear})`"
+      :actions="semesterActions"
+      :cancel-text="`< ${selectedYear}`"
+      @select="onSemesterSelect"
+      @cancel="goBack('semester')"
+    />
+
+    <van-action-sheet
       v-model:show="showFacultySheet"
-      :title="`Оберіть факультет (${selectedYear})`"
+      :title="`Оберіть факультет (${selectedYear}, ${selectedSemester}-й семестр)`"
       :actions="facultyActions"
       :cancel-text="`< ${selectedYear}`"
       @select="onFacultySelect"
@@ -48,11 +57,13 @@ const emit = defineEmits(['filters-selected', 'open']);
 // State
 const allFilters = ref([]);
 const showYearSheet = ref(false);
+const showSemesterSheet = ref(false);
 const showFacultySheet = ref(false);
 const showCourseSheet = ref(false);
 const showGroupSheet = ref(false);
 
 const selectedYear = ref(null);
+const selectedSemester = ref(null);
 const selectedFaculty = ref(null);
 const selectedCourse = ref(null);
 const selectedGroup = ref(null);
@@ -67,9 +78,22 @@ const yearActions = computed(() => {
   }));
 });
 
-const faculties = computed(() => {
+const semesters = computed(() => {
   if (!selectedYear.value) return [];
   return allFilters.value;
+});
+
+const semesterActions = computed(() => {
+  return semesters.value.map(semester => ({
+    name: semester.title,
+    value: semester.code
+  }));
+});
+
+const faculties = computed(() => {
+  if (!selectedSemester.value) return [];
+  const semester = semesters.value.find(s => s.code === selectedSemester.value);
+  return semester ? semester.data : [];
 });
 
 const facultyActions = computed(() => {
@@ -129,6 +153,12 @@ const getCourseTitle = (code) => {
 const onYearSelect = (action) => {
   selectedYear.value = action.value;
   showYearSheet.value = false;
+  showSemesterSheet.value = true;
+};
+
+const onSemesterSelect = (action) => {
+  selectedSemester.value = action.value;
+  showSemesterSheet.value = false;
   showFacultySheet.value = true;
 };
 
@@ -150,6 +180,7 @@ const onGroupSelect = (action) => {
   
   emit('filters-selected', {
     year: selectedYear.value,
+    semester: selectedSemester.value,
     faculty: selectedFaculty.value,
     course: selectedCourse.value,
     group: selectedGroup.value
@@ -159,12 +190,19 @@ const onGroupSelect = (action) => {
 };
 
 const goBack = (level) => {
-  if (level === 'faculty') {
+  if (level === 'semester') {
+    selectedSemester.value = null;
+    selectedFaculty.value = null;
+    selectedCourse.value = null;
+    selectedGroup.value = null;
+    showSemesterSheet.value = false;
+    showYearSheet.value = true;
+  } else if (level === 'faculty') {
     selectedFaculty.value = null;
     selectedCourse.value = null;
     selectedGroup.value = null;
     showFacultySheet.value = false;
-    showYearSheet.value = true;
+    showSemesterSheet.value = true;
   } else if (level === 'course') {
     selectedCourse.value = null;
     selectedGroup.value = null;
@@ -179,6 +217,7 @@ const goBack = (level) => {
 
 const resetSelection = () => {
   selectedYear.value = null;
+  selectedSemester.value = null;
   selectedFaculty.value = null;
   selectedCourse.value = null;
   selectedGroup.value = null;

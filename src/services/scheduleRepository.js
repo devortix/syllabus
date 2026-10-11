@@ -10,9 +10,9 @@ class ScheduleRepository {
     }
   }
 
-  async getSchedule(year, faculty, course, group) {
+  async getSchedule(year, semester, faculty, course, group) {
     try {
-      const path = import.meta.env.BASE_URL + `data/${year}/${faculty}/${course}/${group}.json`;
+      const path = import.meta.env.BASE_URL + `data/${year}/${semester}/${faculty}/${course}/${group}.json`;
       const response = await fetch(path);
       if (!response.ok) throw new Error(`Failed to load schedule from ${path}`);
       return await response.json();
