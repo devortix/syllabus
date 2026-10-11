@@ -1,0 +1,21 @@
+{
+  "name": "syllabus",
+  "version": "1.0.0",
+  "description": "Schedule viewer application",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.43",
+    "vant": "^4.10.2",
+    "moment": "^2.31.0",
+    "axios": "^1.20.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4",
+    "@vitejs/plugin-vue": "^6.0.10"
+  }
+}
