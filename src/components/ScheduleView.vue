@@ -157,7 +157,7 @@ const days = [
 
 // Lesson times
 const lessonTimes = {
-    1: {start: '8.00', end: '9.40'},
+    1: {start: '8.00', end: '9.20'},
     2: {start: '9.40', end: '11.00'},
     3: {start: '11.20', end: '12.40'},
     4: {start: '13.00', end: '14.20'},
