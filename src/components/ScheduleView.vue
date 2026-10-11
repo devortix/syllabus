@@ -184,7 +184,7 @@ const currentWeekDisplay = computed(() => {
 const scheduleLink = computed(() => {
     if (!props.filters) return '';
     const {year, semester, faculty, course, group} = props.filters;
-    return `${config.scheduleDomain}?app=${year}_${semester}_${faculty}_${course}_${group}`;
+    return `${config.scheduleDomain}?startapp=${year}_${semester}_${faculty}_${course}_${group}`;
 });
 
 // Methods

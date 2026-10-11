@@ -353,12 +353,26 @@ const resetSelection = () => {
 };
 
 const parseStartAppParam = async () => {
+    let appParam = null;
+  
+    // First, try to get startapp parameter from URL (browser)
     const params = new URLSearchParams(window.location.search);
-    const app = params.get('app');
+    appParam = params.get('startapp');
+  
+    // If not found in URL, try to get from Telegram Web App
+    if (!appParam && window.Telegram?.WebApp) {
+        try {
+          const tg = window.Telegram.WebApp;
+          tg.ready();
+          appParam = tg.initDataUnsafe?.start_param;
+        } catch (error) {
+          console.error('Error getting Telegram start_param:', error);
+        }
+    }
+  
+    if (!appParam) return;
 
-    if (!app) return;
-
-    const parts = app.split('_');
+    const parts = appParam.split('_');
     if (parts.length !== 5) return;
 
     const [year, semester, faculty, course, group] = parts;
